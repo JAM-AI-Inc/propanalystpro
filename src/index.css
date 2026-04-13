@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Playfair Display", serif;
+
+  --color-zillow-blue: #006AFF;
+  --color-zillow-blue-hover: #0055CC;
+  --color-zillow-blue-light: #E6F0FF;
+  --color-zillow-dark: #2A2A33;
+  --color-zillow-gray: #595960;
+  --color-zillow-border: #D1D1D7;
+  --color-zillow-bg: #F9F9FB;
+  --color-zillow-success: #008A00;
+  --color-zillow-error: #D93939;
+  --color-zillow-warning: #FFB200;
+}
