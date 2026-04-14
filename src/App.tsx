@@ -160,19 +160,19 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zillow-bg text-zillow-dark font-sans selection:bg-zillow-blue selection:text-white">
       {/* Header */}
-      <header className="border-b border-zillow-border px-6 py-4 flex items-center justify-between bg-white sticky top-0 z-50 shadow-sm">
+      <header className="border-b border-zillow-border px-4 md:px-6 py-3 md:py-4 flex items-center justify-between bg-white sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-2">
           <div className="bg-zillow-blue p-1.5 rounded-lg">
-            <TrendingUp className="w-5 h-5 text-white" />
+            <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-white" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-zillow-blue">PropAnalyst Pro</h1>
+          <h1 className="text-lg md:text-xl font-bold tracking-tight text-zillow-blue">PropAnalyst Pro</h1>
         </div>
-        <div className="text-[10px] uppercase tracking-widest text-zillow-gray font-semibold">
+        <div className="hidden sm:block text-[10px] uppercase tracking-widest text-zillow-gray font-semibold">
           Market Intelligence v1.2
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
         {/* Input Section */}
         <section className="lg:col-span-4 space-y-6">
           <motion.div 
@@ -361,50 +361,52 @@ export default function App() {
                 className="space-y-6"
               >
                 {/* Tabs */}
-                <div className="flex gap-2 bg-white p-1.5 rounded-xl border border-zillow-border shadow-sm w-fit">
-                  <button 
-                    onClick={() => setActiveTab("overview")}
-                    className={cn(
-                      "text-[10px] uppercase tracking-widest font-bold px-6 py-2.5 rounded-lg transition-all",
-                      activeTab === "overview" ? "bg-zillow-blue text-white shadow-md shadow-zillow-blue/20" : "text-zillow-gray hover:bg-zillow-blue-light hover:text-zillow-blue"
-                    )}
-                  >
-                    Overview
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab("growth")}
-                    className={cn(
-                      "text-[10px] uppercase tracking-widest font-bold px-6 py-2.5 rounded-lg transition-all",
-                      activeTab === "growth" ? "bg-zillow-blue text-white shadow-md shadow-zillow-blue/20" : "text-zillow-gray hover:bg-zillow-blue-light hover:text-zillow-blue"
-                    )}
-                  >
-                    Long-term Growth
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab("forecast")}
-                    className={cn(
-                      "text-[10px] uppercase tracking-widest font-bold px-6 py-2.5 rounded-lg transition-all",
-                      activeTab === "forecast" ? "bg-zillow-blue text-white shadow-md shadow-zillow-blue/20" : "text-zillow-gray hover:bg-zillow-blue-light hover:text-zillow-blue"
-                    )}
-                  >
-                    Market Forecast
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab("lease")}
-                    className={cn(
-                      "text-[10px] uppercase tracking-widest font-bold px-6 py-2.5 rounded-lg transition-all",
-                      activeTab === "lease" ? "bg-zillow-blue text-white shadow-md shadow-zillow-blue/20" : "text-zillow-gray hover:bg-zillow-blue-light hover:text-zillow-blue"
-                    )}
-                  >
-                    Lease Tool
-                  </button>
+                <div className="flex gap-2 bg-white p-1.5 rounded-xl border border-zillow-border shadow-sm w-full overflow-x-auto no-scrollbar">
+                  <div className="flex gap-2 min-w-max">
+                    <button 
+                      onClick={() => setActiveTab("overview")}
+                      className={cn(
+                        "text-[10px] uppercase tracking-widest font-bold px-4 md:px-6 py-2.5 rounded-lg transition-all whitespace-nowrap",
+                        activeTab === "overview" ? "bg-zillow-blue text-white shadow-md shadow-zillow-blue/20" : "text-zillow-gray hover:bg-zillow-blue-light hover:text-zillow-blue"
+                      )}
+                    >
+                      Overview
+                    </button>
+                    <button 
+                      onClick={() => setActiveTab("growth")}
+                      className={cn(
+                        "text-[10px] uppercase tracking-widest font-bold px-4 md:px-6 py-2.5 rounded-lg transition-all whitespace-nowrap",
+                        activeTab === "growth" ? "bg-zillow-blue text-white shadow-md shadow-zillow-blue/20" : "text-zillow-gray hover:bg-zillow-blue-light hover:text-zillow-blue"
+                      )}
+                    >
+                      Long-term Growth
+                    </button>
+                    <button 
+                      onClick={() => setActiveTab("forecast")}
+                      className={cn(
+                        "text-[10px] uppercase tracking-widest font-bold px-4 md:px-6 py-2.5 rounded-lg transition-all whitespace-nowrap",
+                        activeTab === "forecast" ? "bg-zillow-blue text-white shadow-md shadow-zillow-blue/20" : "text-zillow-gray hover:bg-zillow-blue-light hover:text-zillow-blue"
+                      )}
+                    >
+                      Market Forecast
+                    </button>
+                    <button 
+                      onClick={() => setActiveTab("lease")}
+                      className={cn(
+                        "text-[10px] uppercase tracking-widest font-bold px-4 md:px-6 py-2.5 rounded-lg transition-all whitespace-nowrap",
+                        activeTab === "lease" ? "bg-zillow-blue text-white shadow-md shadow-zillow-blue/20" : "text-zillow-gray hover:bg-zillow-blue-light hover:text-zillow-blue"
+                      )}
+                    >
+                      Lease Tool
+                    </button>
+                  </div>
                 </div>
 
                 {activeTab === "overview" ? (
                   <>
                     {/* Executive Summary */}
                     <div className={cn(
-                      "p-8 rounded-2xl border flex items-start gap-6 shadow-md transition-all",
+                      "p-6 md:p-8 rounded-2xl border flex flex-col sm:flex-row items-center sm:items-start gap-4 md:gap-6 shadow-md transition-all",
                       result.recommendation.decision === "BUY" 
                         ? "bg-white border-zillow-success/20 shadow-zillow-success/5" 
                         : "bg-white border-zillow-error/20 shadow-zillow-error/5"
@@ -413,21 +415,21 @@ export default function App() {
                         "p-4 rounded-2xl shrink-0",
                         result.recommendation.decision === "BUY" ? "bg-zillow-success text-white" : "bg-zillow-error text-white"
                       )}>
-                        {result.recommendation.decision === "BUY" ? <CheckCircle2 className="w-8 h-8" /> : <XCircle className="w-8 h-8" />}
+                        {result.recommendation.decision === "BUY" ? <CheckCircle2 className="w-6 h-6 md:w-8 md:h-8" /> : <XCircle className="w-6 h-6 md:w-8 md:h-8" />}
                       </div>
-                      <div>
+                      <div className="text-center sm:text-left">
                         <div className={cn(
                           "text-[10px] uppercase tracking-[0.2em] font-bold mb-1",
                           result.recommendation.decision === "BUY" ? "text-zillow-success" : "text-zillow-error"
                         )}>
                           Investment Recommendation
                         </div>
-                        <h2 className="text-2xl font-bold tracking-tight text-zillow-dark mb-2">
+                        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-zillow-dark mb-2">
                           {result.recommendation.decision}: {result.recommendation.decision === "BUY" ? "High Viability" : "Low Viability"}
                         </h2>
                         <p className="text-sm text-zillow-gray leading-relaxed mb-4">{result.recommendation.reasoning}</p>
                         <div className="bg-zillow-blue-light/50 p-4 rounded-xl border border-zillow-blue/10">
-                          <div className="text-[10px] uppercase tracking-widest font-bold text-zillow-blue mb-1 flex items-center gap-2">
+                          <div className="text-[10px] uppercase tracking-widest font-bold text-zillow-blue mb-1 flex items-center justify-center sm:justify-start gap-2">
                             <TrendingUp className="w-3 h-3" />
                             5-Year AI Outlook
                           </div>
@@ -624,9 +626,9 @@ export default function App() {
                       </div>
 
                       {/* Property Specs & Market Data */}
-                      <div className="bg-zillow-dark text-white p-8 rounded-2xl shadow-xl">
-                        <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold mb-8 text-zillow-blue">Property Intelligence</h3>
-                        <div className="grid grid-cols-2 gap-8">
+                      <div className="bg-zillow-dark text-white p-6 md:p-8 rounded-2xl shadow-xl">
+                        <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold mb-6 md:mb-8 text-zillow-blue">Property Intelligence</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                           <div className="space-y-4">
                             <div className="text-[10px] uppercase font-bold text-zillow-gray">Specifications</div>
                             <ul className="space-y-3 text-xs">

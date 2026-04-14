@@ -97,8 +97,13 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
     const annualDepreciation = (formData.purchasePrice * (scenario.buildingValuePercent / 100)) / 27.5;
 
     // Calculate total extra principal needed to reach 0 balance by payoffYear
+    // We use the standard balance at payoffYear as the target to eliminate
     const balanceAtPayoff = calculateRemainingBalance(principal, scenario.interestRate, formData.loanTermYears, scenario.payoffYear);
     const annualExtraPrincipal = scenario.payoffYear > 0 ? balanceAtPayoff / scenario.payoffYear : 0;
+
+    let actualRemainingBalance = principal;
+    let cumulativeInterestPaid = 0;
+    let standardCumulativeInterestPaid = 0;
 
     for (let year = 0; year <= years; year++) {
       if (year > 0) {
@@ -106,54 +111,73 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
         currentMonthlyRent *= (1 + rentGrowthRate);
       }
 
-      const mortgagePaidOff = year >= scenario.payoffYear;
-      const annualMortgagePayment = mortgagePaidOff ? 0 : monthlyMortgage * 12;
-      const extraPrincipalThisYear = (year > 0 && year <= scenario.payoffYear) ? annualExtraPrincipal : 0;
+      let annualInterest = 0;
+      let principalPaidThisYear = 0;
+      let extraPrincipalPaidThisYear = 0;
+      
+      const wasAlreadyPaidOff = actualRemainingBalance <= 0;
+      
+      if (year > 0 && !wasAlreadyPaidOff) {
+        const monthlyExtraPrincipal = annualExtraPrincipal / 12;
+        
+        for (let m = 0; m < 12; m++) {
+          if (actualRemainingBalance <= 0) break;
+          
+          const monthlyInterest = actualRemainingBalance * (scenario.interestRate / 100 / 12);
+          annualInterest += monthlyInterest;
+          
+          const principalFromPayment = Math.min(actualRemainingBalance, monthlyMortgage - monthlyInterest);
+          principalPaidThisYear += principalFromPayment;
+          actualRemainingBalance -= principalFromPayment;
+          
+          const extraP = Math.min(actualRemainingBalance, monthlyExtraPrincipal);
+          extraPrincipalPaidThisYear += extraP;
+          actualRemainingBalance -= extraP;
+        }
+      }
+
+      cumulativeInterestPaid += annualInterest;
+      
+      // Calculate standard interest for comparison
+      const standardBalanceStart = year === 0 ? principal : calculateRemainingBalance(principal, scenario.interestRate, formData.loanTermYears, year - 1);
+      const standardBalanceEnd = calculateRemainingBalance(principal, scenario.interestRate, formData.loanTermYears, year);
+      const standardPrincipalPaid = Math.max(0, standardBalanceStart - standardBalanceEnd);
+      const standardAnnualInterest = year === 0 ? 0 : Math.max(0, (monthlyMortgage * 12) - standardPrincipalPaid);
+      standardCumulativeInterestPaid += standardAnnualInterest;
+
+      const mortgagePaidOff = wasAlreadyPaidOff || (year > 0 && actualRemainingBalance <= 0 && principalPaidThisYear + extraPrincipalPaidThisYear > 0);
+      const annualMortgagePayment = wasAlreadyPaidOff ? 0 : (principalPaidThisYear + annualInterest);
       
       const annualRent = currentMonthlyRent * 12;
       const annualExpenses = (monthlyFixedExclMortgage + monthlyVariable) * 12 * Math.pow(1 + expenseGrowthRate, year);
       
-      // Calculate Interest for Tax Deduction
-      const balanceStartOfYear = year === 0 ? principal : calculateRemainingBalance(principal, scenario.interestRate, formData.loanTermYears, year - 1);
-      const balanceEndOfYear = calculateRemainingBalance(principal, scenario.interestRate, formData.loanTermYears, year);
-      const principalPaidThisYear = mortgagePaidOff ? 0 : Math.max(0, balanceStartOfYear - balanceEndOfYear);
-      const annualInterest = mortgagePaidOff ? 0 : Math.max(0, (monthlyMortgage * 12) - principalPaidThisYear);
-
-      const preTaxCashFlow = annualRent - annualExpenses - annualMortgagePayment - extraPrincipalThisYear;
+      const preTaxCashFlow = annualRent - annualExpenses - annualMortgagePayment - extraPrincipalPaidThisYear;
       
       // Taxable Income Calculation
-      // Note: Extra principal is NOT deductible. Mortgage interest and expenses ARE.
       const taxableIncome = annualRent - annualExpenses - annualInterest - annualDepreciation;
       
-      // Tax Savings: For >200k income, losses are suspended but offset rental income.
-      // We'll show the potential tax shield benefit.
       const taxSavings = taxableIncome < 0 ? Math.abs(taxableIncome) * (scenario.taxRate / 100) : -(taxableIncome * (scenario.taxRate / 100));
-
       const afterTaxCashFlow = preTaxCashFlow + taxSavings;
 
       if (year > 0) {
         cumulativeCashFlow += afterTaxCashFlow;
       }
 
-      // Calculate actual equity: Value - Remaining Balance
-      const standardBalance = calculateRemainingBalance(principal, scenario.interestRate, formData.loanTermYears, year);
-      const totalExtraPaidSoFar = Math.min(year, scenario.payoffYear) * annualExtraPrincipal;
-      const remainingBalance = Math.max(0, standardBalance - totalExtraPaidSoFar);
-
       data.push({
         year: `Year ${year}`,
         propertyValue: Math.round(currentPropertyValue),
-        equity: Math.round(currentPropertyValue - remainingBalance),
+        equity: Math.round(currentPropertyValue - actualRemainingBalance),
         cumulativeCashFlow: Math.round(cumulativeCashFlow),
         annualCashFlow: Math.round(afterTaxCashFlow),
         preTaxCashFlow: Math.round(preTaxCashFlow),
         taxSavings: Math.round(taxSavings),
-        extraPrincipal: Math.round(extraPrincipalThisYear),
+        extraPrincipal: Math.round(extraPrincipalPaidThisYear),
         annualRent: Math.round(annualRent),
         annualExpenses: Math.round(annualExpenses),
         annualInterest: Math.round(annualInterest),
         annualDepreciation: Math.round(annualDepreciation),
         taxableIncome: Math.round(taxableIncome),
+        interestSaved: Math.round(standardCumulativeInterestPaid - cumulativeInterestPaid),
       });
     }
     return data;
@@ -168,7 +192,7 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
     const calculateForYear = (targetYear: number) => {
       const yearIndex = targetYear;
       const yearData = projectionData[yearIndex];
-      if (!yearData) return { rate: 0, initial: 0, negative: 0, positive: 0, final: 0, adjustedInitial: 0, extraPrincipal: 0, totalTaxSavings: 0 };
+      if (!yearData) return { rate: 0, initial: 0, negative: 0, positive: 0, final: 0, adjustedInitial: 0, extraPrincipal: 0, totalTaxSavings: 0, interestSaved: 0 };
       
       const initialInvestment = result.metrics.totalCashInvested;
       let totalNegativeCF = 0;
@@ -205,7 +229,8 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
         final: finalValue,
         adjustedInitial,
         extraPrincipal: totalExtraPrincipal,
-        totalTaxSavings
+        totalTaxSavings,
+        interestSaved: yearData.interestSaved || 0
       };
     };
 
@@ -502,12 +527,12 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
       </div>
 
       {/* Cumulative Cash Flow Chart */}
-      <div className="bg-white border border-zillow-gray-light rounded-xl p-6 shadow-sm">
+      <div className="bg-white border border-zillow-gray-light rounded-xl p-4 md:p-6 shadow-sm">
         <h3 className="text-sm font-bold text-zillow-dark mb-6 flex items-center gap-2">
           <Calendar className="w-4 h-4 text-zillow-blue" />
           Cumulative Cash Flow Projection (30 Years)
         </h3>
-        <div className="h-[300px] w-full">
+        <div className="h-[250px] md:h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={projectionData}>
               <defs>
@@ -555,12 +580,12 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
       </div>
 
       {/* Appreciation Chart */}
-      <div className="bg-white border border-zillow-gray-light rounded-xl p-6 shadow-sm">
+      <div className="bg-white border border-zillow-gray-light rounded-xl p-4 md:p-6 shadow-sm">
         <h3 className="text-sm font-bold text-zillow-dark mb-6 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-zillow-blue" />
           Property Value & Equity Growth
         </h3>
-        <div className="h-[300px] w-full">
+        <div className="h-[250px] md:h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={projectionData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -607,12 +632,12 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
       </div>
 
       {/* Tax Deduction Explanation Section */}
-      <div className="bg-white border border-zillow-gray-light rounded-xl p-8 shadow-sm">
+      <div className="bg-white border border-zillow-gray-light rounded-xl p-6 md:p-8 shadow-sm">
         <h3 className="text-xs font-bold uppercase text-zillow-blue mb-6 flex items-center gap-2">
           <Zap className="w-4 h-4" />
           How Tax Deduction Savings are Calculated
         </h3>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
           <div className="lg:col-span-1 space-y-6">
             <div className="space-y-4">
               <p className="text-sm text-zillow-gray-dark leading-relaxed">
@@ -649,8 +674,8 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
           </div>
 
           <div className="lg:col-span-2">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto no-scrollbar -mx-2 px-2">
+              <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead>
                   <tr className="border-b border-zillow-gray-light">
                     <th className="py-3 text-[10px] font-bold text-zillow-gray uppercase">Calculation Step</th>
@@ -714,12 +739,12 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
       </div>
 
       {/* Annualized Return Explanation */}
-      <div className="bg-zillow-blue-light/30 border border-zillow-blue/10 p-8 rounded-2xl">
+      <div className="bg-zillow-blue-light/30 border border-zillow-blue/10 p-6 md:p-8 rounded-2xl">
         <h3 className="text-xs font-bold uppercase text-zillow-blue mb-6 flex items-center gap-2">
           <TrendingUp className="w-4 h-4" />
           Understanding Your After-Tax Annualized Return (CAGR)
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 md:gap-8">
           <div className="space-y-4">
             <p className="text-[11px] text-zillow-gray-dark leading-relaxed">
               The <span className="font-bold">After-Tax Annualized Return</span> accounts for the "out-of-pocket" costs of negative cash flow and the benefits of tax depreciation. 
@@ -727,9 +752,20 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
               For an investor with <span className="font-bold text-zillow-blue">$200k+ salaried income</span>, passive losses are generally suspended but can offset rental income or be used upon sale. This model includes the <span className="font-bold text-zillow-success">Tax Shield</span> benefit as an addition to cash flow.
             </p>
             <div className="bg-white p-4 rounded-xl border border-zillow-blue/10 space-y-2">
-              <div className="text-[10px] uppercase font-bold text-zillow-gray">The Formula</div>
-              <div className="font-mono text-xs text-zillow-blue py-2">
-                ((Final Value / Adjusted Investment) ^ (1/n)) - 1
+              <div className="text-[10px] uppercase font-bold text-zillow-gray">The Formulas</div>
+              <div className="space-y-3">
+                <div>
+                  <div className="text-[9px] text-zillow-gray-dark mb-1">Adjusted Investment:</div>
+                  <div className="font-mono text-[10px] text-zillow-blue">Initial Cash + Sum of All Negative Annual CF</div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-zillow-gray-dark mb-1">Final Value:</div>
+                  <div className="font-mono text-[10px] text-zillow-blue">Equity + Sum of All Positive Annual CF</div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-zillow-gray-dark mb-1">Annualized Return (CAGR):</div>
+                  <div className="font-mono text-[10px] text-zillow-blue">((Final Value / Adj. Investment) ^ (1/n)) - 1</div>
+                </div>
               </div>
             </div>
           </div>
@@ -750,21 +786,31 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
                 <span className="text-zillow-gray-dark">Other Neg CF</span>
                 <span className="font-bold text-zillow-error">${(returnMetrics.y10.negative - returnMetrics.y10.extraPrincipal > 0 ? returnMetrics.y10.negative - returnMetrics.y10.extraPrincipal : 0).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold">
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold bg-zillow-blue-light/20 px-1">
                 <span className="text-zillow-dark">Adj. Investment</span>
                 <span className="text-zillow-dark">${returnMetrics.y10.adjustedInitial.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 pt-2">
+              <div className="pt-2"></div>
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5">
                 <span className="text-zillow-gray-dark">Year 10 Equity</span>
                 <span className="font-bold text-zillow-dark">${projectionData[10]?.equity.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5">
-                <span className="text-zillow-gray-dark">Total Tax Savings</span>
-                <span className="font-bold text-zillow-success">${Math.round(returnMetrics.y10.totalTaxSavings).toLocaleString()}</span>
+                <span className="text-zillow-gray-dark">Positive Cash Flow</span>
+                <span className="font-bold text-zillow-success">${returnMetrics.y10.positive.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs pt-1.5 font-bold">
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold bg-zillow-blue-light/20 px-1">
                 <span className="text-zillow-blue">Final Value</span>
                 <span className="text-zillow-blue">${returnMetrics.y10.final.toLocaleString()}</span>
+              </div>
+              <div className="pt-2"></div>
+              <div className="flex justify-between text-[10px] text-zillow-gray italic">
+                <span>Incl. Tax Savings:</span>
+                <span>${Math.round(returnMetrics.y10.totalTaxSavings).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-[10px] text-zillow-gray italic">
+                <span>Incl. Interest Saved:</span>
+                <span>${Math.round(returnMetrics.y10.interestSaved).toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -785,21 +831,31 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
                 <span className="text-zillow-gray-dark">Other Neg CF</span>
                 <span className="font-bold text-zillow-error">${(returnMetrics.y20.negative - returnMetrics.y20.extraPrincipal > 0 ? returnMetrics.y20.negative - returnMetrics.y20.extraPrincipal : 0).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold">
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold bg-zillow-blue-light/20 px-1">
                 <span className="text-zillow-dark">Adj. Investment</span>
                 <span className="text-zillow-dark">${returnMetrics.y20.adjustedInitial.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 pt-2">
+              <div className="pt-2"></div>
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5">
                 <span className="text-zillow-gray-dark">Year 20 Equity</span>
                 <span className="font-bold text-zillow-dark">${projectionData[20]?.equity.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5">
-                <span className="text-zillow-gray-dark">Total Tax Savings</span>
-                <span className="font-bold text-zillow-success">${Math.round(returnMetrics.y20.totalTaxSavings).toLocaleString()}</span>
+                <span className="text-zillow-gray-dark">Positive Cash Flow</span>
+                <span className="font-bold text-zillow-success">${returnMetrics.y20.positive.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs pt-1.5 font-bold">
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold bg-zillow-blue-light/20 px-1">
                 <span className="text-zillow-blue">Final Value</span>
                 <span className="text-zillow-blue">${returnMetrics.y20.final.toLocaleString()}</span>
+              </div>
+              <div className="pt-2"></div>
+              <div className="flex justify-between text-[10px] text-zillow-gray italic">
+                <span>Incl. Tax Savings:</span>
+                <span>${Math.round(returnMetrics.y20.totalTaxSavings).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-[10px] text-zillow-gray italic">
+                <span>Incl. Interest Saved:</span>
+                <span>${Math.round(returnMetrics.y20.interestSaved).toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -820,21 +876,31 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
                 <span className="text-zillow-gray-dark">Other Neg CF</span>
                 <span className="font-bold text-zillow-error">${(returnMetrics.y25.negative - returnMetrics.y25.extraPrincipal > 0 ? returnMetrics.y25.negative - returnMetrics.y25.extraPrincipal : 0).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold">
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold bg-zillow-blue-light/20 px-1">
                 <span className="text-zillow-dark">Adj. Investment</span>
                 <span className="text-zillow-dark">${returnMetrics.y25.adjustedInitial.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 pt-2">
+              <div className="pt-2"></div>
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5">
                 <span className="text-zillow-gray-dark">Year 25 Equity</span>
                 <span className="font-bold text-zillow-dark">${projectionData[25]?.equity.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5">
-                <span className="text-zillow-gray-dark">Total Tax Savings</span>
-                <span className="font-bold text-zillow-success">${Math.round(returnMetrics.y25.totalTaxSavings).toLocaleString()}</span>
+                <span className="text-zillow-gray-dark">Positive Cash Flow</span>
+                <span className="font-bold text-zillow-success">${returnMetrics.y25.positive.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs pt-1.5 font-bold">
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold bg-zillow-blue-light/20 px-1">
                 <span className="text-zillow-blue">Final Value</span>
                 <span className="text-zillow-blue">${returnMetrics.y25.final.toLocaleString()}</span>
+              </div>
+              <div className="pt-2"></div>
+              <div className="flex justify-between text-[10px] text-zillow-gray italic">
+                <span>Incl. Tax Savings:</span>
+                <span>${Math.round(returnMetrics.y25.totalTaxSavings).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-[10px] text-zillow-gray italic">
+                <span>Incl. Interest Saved:</span>
+                <span>${Math.round(returnMetrics.y25.interestSaved).toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -855,21 +921,31 @@ export const GrowthAnalysis: React.FC<GrowthAnalysisProps> = ({ result, formData
                 <span className="text-zillow-gray-dark">Other Neg CF</span>
                 <span className="font-bold text-zillow-error">${(returnMetrics.y30.negative - returnMetrics.y30.extraPrincipal > 0 ? returnMetrics.y30.negative - returnMetrics.y30.extraPrincipal : 0).toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold">
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold bg-zillow-blue-light/20 px-1">
                 <span className="text-zillow-dark">Adj. Investment</span>
                 <span className="text-zillow-dark">${returnMetrics.y30.adjustedInitial.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 pt-2">
+              <div className="pt-2"></div>
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5">
                 <span className="text-zillow-gray-dark">Year 30 Equity</span>
                 <span className="font-bold text-zillow-dark">${projectionData[30]?.equity.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5">
-                <span className="text-zillow-gray-dark">Total Tax Savings</span>
-                <span className="font-bold text-zillow-success">${Math.round(returnMetrics.y30.totalTaxSavings).toLocaleString()}</span>
+                <span className="text-zillow-gray-dark">Positive Cash Flow</span>
+                <span className="font-bold text-zillow-success">${returnMetrics.y30.positive.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-xs pt-1.5 font-bold">
+              <div className="flex justify-between text-xs border-b border-zillow-blue/5 pb-1.5 font-bold bg-zillow-blue-light/20 px-1">
                 <span className="text-zillow-blue">Final Value</span>
                 <span className="text-zillow-blue">${returnMetrics.y30.final.toLocaleString()}</span>
+              </div>
+              <div className="pt-2"></div>
+              <div className="flex justify-between text-[10px] text-zillow-gray italic">
+                <span>Incl. Tax Savings:</span>
+                <span>${Math.round(returnMetrics.y30.totalTaxSavings).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-[10px] text-zillow-gray italic">
+                <span>Incl. Interest Saved:</span>
+                <span>${Math.round(returnMetrics.y30.interestSaved).toLocaleString()}</span>
               </div>
             </div>
           </div>

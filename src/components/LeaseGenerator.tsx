@@ -57,8 +57,8 @@ export function LeaseGenerator() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-zillow-border p-8 rounded-2xl shadow-sm">
-        <div className="flex items-center gap-3 mb-8">
+      <div className="bg-white border border-zillow-border p-6 md:p-8 rounded-2xl shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 mb-8 text-center sm:text-left">
           <div className="p-3 bg-zillow-blue-light rounded-2xl">
             <FileText className="w-6 h-6 text-zillow-blue" />
           </div>
@@ -231,7 +231,7 @@ export function LeaseGenerator() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white border border-zillow-border rounded-2xl shadow-md overflow-hidden"
           >
-            <div className="bg-zillow-dark px-8 py-4 flex items-center justify-between">
+            <div className="bg-zillow-dark px-6 md:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-zillow-blue" />
                 <span className="text-xs font-bold text-white uppercase tracking-widest">Generated Document</span>
@@ -244,12 +244,12 @@ export function LeaseGenerator() {
                 Download .md
               </button>
             </div>
-            <div className="p-8 max-h-[600px] overflow-y-auto prose prose-sm max-w-none">
+            <div className="p-6 md:p-8 max-h-[600px] overflow-y-auto prose prose-sm max-w-none">
               <div className="markdown-body">
                 <Markdown>{agreement}</Markdown>
               </div>
             </div>
-            <div className="bg-zillow-bg px-8 py-4 border-t border-zillow-border">
+            <div className="bg-zillow-bg px-6 md:px-8 py-4 border-t border-zillow-border">
               <p className="text-[10px] text-zillow-gray italic text-center">
                 Note: This document is a template. Always review with a legal professional before execution.
               </p>
